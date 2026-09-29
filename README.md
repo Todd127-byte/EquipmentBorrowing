@@ -170,3 +170,103 @@ The Desktop startup code shows which implementations are used and how they are c
 ### If in-memory storage were replaced by SQLite, which interface parts should remain largely unchanged?
 
 The Views, ViewModels, Application services, and repository interfaces should remain largely unchanged. Infrastructure would provide SQLite-backed implementations of those interfaces, and the composition root would register the new implementations.
+
+## Laboratory Activity 3 – Persistent Storage
+
+The preceding sections preserve the Activity 1 and Activity 2 documentation of the original in-memory implementation. For Activity 3, the Desktop application uses EF Core and SQLite behind the same repository interfaces. Avalonia Views and ViewModels still call Application services and do not access a DbContext.
+
+### Relational Database Design
+
+See [docs/database-diagram.png](docs/database-diagram.png). The schema reflects the existing Domain model; it does not add a student number, equipment type, or return timestamp that the Domain does not contain.
+
+| Table | Columns and constraints |
+| --- | --- |
+| `Students` | `Id` integer primary key; required `Name` (maximum 120 characters); required `IsAllowedToBorrow`; required `MaximumActiveBorrowings` with a non-negative check constraint. |
+| `Equipment` | `Id` integer primary key; required `Name` (maximum 160 characters); required `IsAvailable`, indexed for inventory filtering. |
+| `Borrowings` | `Id` GUID primary key; required `StudentId` and `EquipmentId` foreign keys; required `DateBorrowed`, `ExpectedReturnDate`, and integer `Status` (`0` Active, `1` Returned). Status has a check constraint. Both foreign keys use `RESTRICT` on delete. |
+
+Each student and equipment item can be referenced by multiple borrowing records over time. A filtered unique index on `Borrowings.EquipmentId` where `Status = 0` prevents two active borrowings for one equipment item. Additional indexes support borrowing counts by student and due-date ordering. Fluent mappings are in `EquipmentBorrowing.Infrastructure/Persistence/Configurations`.
+
+### SQLite and Entity Framework Core
+
+The Infrastructure project references `Microsoft.EntityFrameworkCore`, `Microsoft.EntityFrameworkCore.Sqlite`, and `Microsoft.EntityFrameworkCore.Design`, all version `10.0.12`. Desktop's `Microsoft.Extensions.DependencyInjection` reference is also `10.0.12`, matching the EF Core stack. The projects target .NET 10. SQLite stores data in a local file without a separate database server; EF Core maps Domain objects, translates LINQ to SQLite SQL, and applies versioned schema changes.
+
+`EquipmentBorrowingDbContext` in Infrastructure exposes `Students`, `Equipment`, and `Borrowings`. Fluent configurations keep storage rules out of Domain and Application. The design-time factory uses an in-memory SQLite connection so migration scaffolding does not touch the persistent data file.
+
+### Repository Transition and Dependency Injection
+
+The Activity 2 implementation was:
+
+```text
+Repository Interface
+    ↓
+In-Memory Repository
+```
+
+The Desktop composition root now selects:
+
+```text
+Avalonia View
+    ↓
+ViewModel
+    ↓
+Application Service
+    ↓
+Repository Interface
+    ↓
+EF Core Repository
+    ↓
+EquipmentBorrowingDbContext
+    ↓
+SQLite
+```
+
+`EfStudentRepository`, `EfEquipmentRepository`, and `EfBorrowingRepository` use an injected `IDbContextFactory<EquipmentBorrowingDbContext>`. The factory creates and disposes a context for each repository operation; the repositories are singletons because they retain no context or mutable state. Desktop registers these EF repositories in place of the in-memory ones. The ViewModel only gained a service-backed available-equipment list so already borrowed items cannot be selected in the borrow form.
+
+### Database File and Migrations
+
+The persistent file is `%LOCALAPPDATA%/CampusEquipmentBorrowing/Data/equipmentborrowings.db` (normally `C:\Users\<user>\AppData\Local\CampusEquipmentBorrowing\Data\equipmentborrowings.db`). The directory is created automatically. Startup calls `Database.MigrateAsync()` before opening the main window; it never drops or recreates the database. Migrations are the schema source of truth and live in `EquipmentBorrowing.Infrastructure/Persistence/Migrations`.
+
+The committed migration is `InitialCreate`. A local `dotnet-ef` tool manifest is in `.config/dotnet-tools.json`. Scaffold a later migration with:
+
+```powershell
+dotnet tool restore
+dotnet tool run dotnet-ef migrations add MigrationName --project EquipmentBorrowing.Infrastructure --startup-project EquipmentBorrowing.Infrastructure --output-dir Persistence/Migrations
+```
+
+Apply it explicitly from PowerShell with:
+
+```powershell
+$dbPath = Join-Path $env:LOCALAPPDATA 'CampusEquipmentBorrowing\Data\equipmentborrowings.db'
+dotnet tool run dotnet-ef database update --connection "Data Source=$dbPath;Foreign Keys=True" --project EquipmentBorrowing.Infrastructure --startup-project EquipmentBorrowing.Infrastructure
+```
+
+### LINQ Queries and Generated SQL
+
+The EF repositories execute these application queries against SQLite:
+
+1. Available equipment: filter `Equipment` by `IsAvailable`, ordered by name.
+2. Active borrowing summaries: join `Borrowings` to `Students` and `Equipment`, filter to `BorrowingStatus.Active`, and order by expected return date.
+3. Borrowing limit: count active `Borrowings` for one student with `CountAsync`.
+
+Actual EF Core command output is documented in [docs/generated-sql.md](docs/generated-sql.md). The available-equipment and join statements were captured from Desktop startup logs; the SQLite persistence test also captures and checks all three commands using EF Core's `Database.Command` logger.
+
+### Tracking vs No-Tracking
+
+Queries used only to display equipment, students, borrowing summaries, or history use `AsNoTracking()` so EF does not retain entity snapshots. Each repository write uses a short-lived context, attaches the Domain object, and marks only the changed property (`IsAvailable` or borrowing `Status`) as modified before `SaveChangesAsync()`. A DbContext is never shared with a ViewModel.
+
+### Seed Data and Persistence Demonstration
+
+Startup applies pending migrations, then seeds only when all three domain tables are empty. Initial data is two students (Juan Dela Cruz can borrow, Maria Santos cannot), four equipment items (three available and a Raspberry Pi already borrowed), and an active borrowing connecting Juan to the Raspberry Pi. Repeated startup does not duplicate seed rows or reset existing records.
+
+`SqlitePersistenceTests` creates an isolated SQLite file, runs initialization twice, verifies idempotent seed data, verifies an unsuccessful borrowing, borrows available equipment, and creates fresh repository/context factories to confirm the active borrowing survives a simulated close and reopen. It then returns the equipment and uses another fresh factory to verify that the returned status and available state persist. This exercises the application services and EF repositories without changing the user's database.
+
+### Architectural Reflection
+
+1. **Why did SQLite not require a complete rewrite?** Use cases already depended on repository interfaces, so Infrastructure and Desktop registrations could change while Domain rules, Application services, and the MVVM workflow remained in place.
+2. **Why should a ViewModel not use `DbContext` directly?** That couples presentation state to EF Core, puts persistence decisions in the UI layer, and makes the ViewModel harder to test or reuse.
+3. **What responsibility does the repository implementation perform?** It translates repository operations into EF Core queries and updates, manages short-lived DbContext instances, and persists Domain state through SQLite.
+4. **What is the purpose of an EF Core migration?** It records an ordered, reviewable schema change that can be applied consistently to create or update databases.
+5. **Why are foreign keys important?** They prevent a borrowing from referring to a missing student or equipment item and preserve the Domain relationships.
+6. **Why can a read-only query benefit from `AsNoTracking()`?** EF skips change-tracking snapshots for entities that will only be displayed, reducing tracking work and accidental state coupling.
+7. **What if SQLite is replaced by another provider?** Views, ViewModels, Application services, and repository interfaces can remain; Infrastructure adapts provider configuration and repository implementations.
