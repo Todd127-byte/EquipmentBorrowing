@@ -24,6 +24,11 @@ public class Borrowing
         Status = BorrowingStatus.Active;
     }
 
+    // EF Core materializes persisted records through this private constructor.
+    private Borrowing()
+    {
+    }
+
     public void MarkAsReturned()
     {
         if (Status == BorrowingStatus.Returned)
