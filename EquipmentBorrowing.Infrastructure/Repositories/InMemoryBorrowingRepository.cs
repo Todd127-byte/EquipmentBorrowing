@@ -1,15 +1,48 @@
-﻿using EquipmentBorrowing.Application.Interfaces;
+using EquipmentBorrowing.Application.Interfaces;
+using EquipmentBorrowing.Application.Models;
 using EquipmentBorrowing.Domain;
 
 namespace EquipmentBorrowing.Infrastructure.Repositories;
 
 public class InMemoryBorrowingRepository : IBorrowingRepository
 {
-    private readonly List<Borrowing> _borrowings;
+    private readonly List<Borrowing> _borrowings = new();
+    private readonly IStudentRepository _studentRepository;
+    private readonly IEquipmentRepository _equipmentRepository;
 
-    public InMemoryBorrowingRepository()
+    public InMemoryBorrowingRepository(
+        IStudentRepository? studentRepository = null,
+        IEquipmentRepository? equipmentRepository = null)
     {
-        _borrowings = new List<Borrowing>();
+        _studentRepository = studentRepository ?? new InMemoryStudentRepository();
+        _equipmentRepository = equipmentRepository ?? new InMemoryEquipmentRepository();
+    }
+
+    public async Task<IReadOnlyList<ActiveBorrowingSummary>> GetActiveSummariesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var summaries = new List<ActiveBorrowingSummary>();
+        foreach (var borrowing in _borrowings.Where(
+                     item => item.Status == BorrowingStatus.Active))
+        {
+            var student = await _studentRepository.GetByIdAsync(
+                borrowing.StudentId,
+                cancellationToken);
+            var equipment = await _equipmentRepository.GetByIdAsync(
+                borrowing.EquipmentId,
+                cancellationToken);
+
+            summaries.Add(new ActiveBorrowingSummary(
+                borrowing.Id,
+                borrowing.StudentId,
+                student?.Name ?? $"Student #{borrowing.StudentId}",
+                borrowing.EquipmentId,
+                equipment?.Name ?? $"Equipment #{borrowing.EquipmentId}",
+                borrowing.ExpectedReturnDate,
+                borrowing.Status));
+        }
+
+        return summaries;
     }
 
     public Task<IEnumerable<Borrowing>> GetAllAsync(
@@ -22,7 +55,7 @@ public class InMemoryBorrowingRepository : IBorrowingRepository
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(_borrowings.FirstOrDefault(b => b.Id == id));
+        return Task.FromResult(_borrowings.FirstOrDefault(borrowing => borrowing.Id == id));
     }
 
     public Task AddAsync(
@@ -30,7 +63,6 @@ public class InMemoryBorrowingRepository : IBorrowingRepository
         CancellationToken cancellationToken = default)
     {
         _borrowings.Add(borrowing);
-
         return Task.CompletedTask;
     }
 
@@ -38,9 +70,9 @@ public class InMemoryBorrowingRepository : IBorrowingRepository
         int studentId,
         CancellationToken cancellationToken = default)
     {
-        var count = _borrowings.Count(b =>
-            b.StudentId == studentId &&
-            b.Status == BorrowingStatus.Active);
+        var count = _borrowings.Count(borrowing =>
+            borrowing.StudentId == studentId &&
+            borrowing.Status == BorrowingStatus.Active);
 
         return Task.FromResult(count);
     }
@@ -49,7 +81,7 @@ public class InMemoryBorrowingRepository : IBorrowingRepository
         Borrowing borrowing,
         CancellationToken cancellationToken = default)
     {
-        var index = _borrowings.FindIndex(b => b.Id == borrowing.Id);
+        var index = _borrowings.FindIndex(existing => existing.Id == borrowing.Id);
         if (index >= 0)
         {
             _borrowings[index] = borrowing;

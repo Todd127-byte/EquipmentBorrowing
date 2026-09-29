@@ -60,7 +60,7 @@
                     </ComboBox>
 
                     <TextBlock Text="Equipment" />
-                    <ComboBox ItemsSource="{Binding Equipment}"
+                    <ComboBox ItemsSource="{Binding BorrowableEquipment}"
                               SelectedItem="{Binding SelectedBorrowEquipment}"
                               PlaceholderText="Select equipment">
                         <ComboBox.ItemTemplate>

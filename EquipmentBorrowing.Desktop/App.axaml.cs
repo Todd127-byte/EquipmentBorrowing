@@ -1,10 +1,14 @@
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using EquipmentBorrowing.Application.Interfaces;
 using EquipmentBorrowing.Application.Services;
 using EquipmentBorrowing.Desktop.ViewModels;
+using EquipmentBorrowing.Infrastructure.Persistence;
 using EquipmentBorrowing.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace EquipmentBorrowing.Desktop;
 
@@ -21,19 +25,30 @@ public partial class App : Avalonia.Application
     {
         var services = new ServiceCollection();
 
-        // Repository instances retain in-memory borrowing state for this run.
-        services.AddSingleton<IStudentRepository, InMemoryStudentRepository>();
-        services.AddSingleton<IEquipmentRepository, InMemoryEquipmentRepository>();
-        services.AddSingleton<IBorrowingRepository, InMemoryBorrowingRepository>();
+        services.AddDbContextFactory<EquipmentBorrowingDbContext>(options =>
+        {
+            options.UseSqlite(DatabasePaths.GetConnectionString());
+#if DEBUG
+            options.LogTo(
+                Console.WriteLine,
+                new[] { DbLoggerCategory.Database.Command.Name },
+                LogLevel.Information);
+#endif
+        });
 
-        // Application services contain the operations used by the ViewModels.
+        services.AddSingleton<IStudentRepository, EfStudentRepository>();
+        services.AddSingleton<IEquipmentRepository, EfEquipmentRepository>();
+        services.AddSingleton<IBorrowingRepository, EfBorrowingRepository>();
+        services.AddSingleton<DatabaseInitializer>();
+
         services.AddTransient<BorrowEquipmentService>();
         services.AddTransient<ReturnEquipmentService>();
         services.AddTransient<GetAllEquipmentService>();
+        services.AddTransient<GetAvailableEquipmentService>();
         services.AddTransient<GetAllStudentsService>();
         services.AddTransient<GetActiveBorrowingsService>();
 
-        // Shared ViewModels retain their state while the user navigates.
+        // Shared ViewModels preserve UI state while the user navigates.
         services.AddSingleton<EquipmentViewModel>();
         services.AddSingleton<BorrowingsViewModel>();
         services.AddSingleton<MainViewModel>();
@@ -42,6 +57,20 @@ public partial class App : Avalonia.Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            try
+            {
+                _serviceProvider.GetRequiredService<DatabaseInitializer>()
+                    .InitializeAsync()
+                    .GetAwaiter()
+                    .GetResult();
+            }
+            catch (Exception exception)
+            {
+                desktop.MainWindow = CreateDatabaseErrorWindow(exception);
+                base.OnFrameworkInitializationCompleted();
+                return;
+            }
+
             var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
             var mainWindow = new Views.MainWindow
             {
@@ -54,5 +83,35 @@ public partial class App : Avalonia.Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static Window CreateDatabaseErrorWindow(Exception exception)
+    {
+        return new Window
+        {
+            Title = "Database initialization failed",
+            Width = 560,
+            Height = 260,
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            Content = new StackPanel
+            {
+                Margin = new Avalonia.Thickness(24),
+                Spacing = 12,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = "The equipment database could not be initialized.",
+                        FontSize = 18,
+                        FontWeight = Avalonia.Media.FontWeight.Bold
+                    },
+                    new TextBlock
+                    {
+                        Text = exception.Message,
+                        TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                    }
+                }
+            }
+        };
     }
 }

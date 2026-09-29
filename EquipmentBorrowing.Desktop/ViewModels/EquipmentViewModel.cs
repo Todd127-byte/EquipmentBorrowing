@@ -9,10 +9,12 @@ namespace EquipmentBorrowing.Desktop.ViewModels;
 public partial class EquipmentViewModel : ViewModelBase
 {
     private readonly GetAllEquipmentService _getAllEquipmentService;
+    private readonly GetAvailableEquipmentService _getAvailableEquipmentService;
     private readonly GetAllStudentsService _getAllStudentsService;
     private readonly BorrowEquipmentService _borrowEquipmentService;
 
     public ObservableCollection<Equipment> Equipment { get; } = new();
+    public ObservableCollection<Equipment> BorrowableEquipment { get; } = new();
     public ObservableCollection<Student> Students { get; } = new();
 
     [ObservableProperty]
@@ -32,10 +34,12 @@ public partial class EquipmentViewModel : ViewModelBase
 
     public EquipmentViewModel(
         GetAllEquipmentService getAllEquipmentService,
+        GetAvailableEquipmentService getAvailableEquipmentService,
         GetAllStudentsService getAllStudentsService,
         BorrowEquipmentService borrowEquipmentService)
     {
         _getAllEquipmentService = getAllEquipmentService;
+        _getAvailableEquipmentService = getAvailableEquipmentService;
         _getAllStudentsService = getAllStudentsService;
         _borrowEquipmentService = borrowEquipmentService;
     }
@@ -89,12 +93,19 @@ public partial class EquipmentViewModel : ViewModelBase
         try
         {
             var equipment = await _getAllEquipmentService.ExecuteAsync();
+            var availableEquipment = await _getAvailableEquipmentService.ExecuteAsync();
             var students = await _getAllStudentsService.ExecuteAsync();
 
             Equipment.Clear();
             foreach (var item in equipment)
             {
                 Equipment.Add(item);
+            }
+
+            BorrowableEquipment.Clear();
+            foreach (var item in availableEquipment)
+            {
+                BorrowableEquipment.Add(item);
             }
 
             Students.Clear();

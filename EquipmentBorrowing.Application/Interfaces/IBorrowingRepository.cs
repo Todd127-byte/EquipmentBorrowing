@@ -1,9 +1,13 @@
-﻿using EquipmentBorrowing.Domain;
+using EquipmentBorrowing.Application.Models;
+using EquipmentBorrowing.Domain;
 
 namespace EquipmentBorrowing.Application.Interfaces;
 
 public interface IBorrowingRepository
 {
+    Task<IReadOnlyList<ActiveBorrowingSummary>> GetActiveSummariesAsync(
+        CancellationToken cancellationToken = default);
+
     Task<IEnumerable<Borrowing>> GetAllAsync(
         CancellationToken cancellationToken = default);
 

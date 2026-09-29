@@ -29,6 +29,13 @@ public class InMemoryEquipmentRepository : IEquipmentRepository
         return Task.FromResult<IEnumerable<Equipment>>(_equipment);
     }
 
+    public Task<IEnumerable<Equipment>> GetAvailableAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult<IEnumerable<Equipment>>(
+            _equipment.Where(equipment => equipment.IsAvailable).ToList());
+    }
+
     public Task<Equipment?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default)
