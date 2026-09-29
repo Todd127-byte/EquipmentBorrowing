@@ -23,6 +23,12 @@ public class InMemoryEquipmentRepository : IEquipmentRepository
         };
     }
 
+    public Task<IEnumerable<Equipment>> GetAllAsync(
+    CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult<IEnumerable<Equipment>>(_equipment);
+    }
+
     public Task<Equipment?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default)
@@ -42,9 +48,11 @@ public class InMemoryEquipmentRepository : IEquipmentRepository
 
         if (existingEquipment is not null)
         {
-            existingEquipment.MarkAsAvailable();
-
-            if (!equipment.IsAvailable)
+            if (equipment.IsAvailable)
+            {
+                existingEquipment.MarkAsAvailable();
+            }
+            else
             {
                 existingEquipment.MarkAsBorrowed();
             }

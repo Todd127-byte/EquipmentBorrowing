@@ -1,0 +1,82 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:EquipmentBorrowing.Desktop.ViewModels"
+    xmlns:domain="using:EquipmentBorrowing.Domain"
+    x:Class="EquipmentBorrowing.Desktop.Views.EquipmentView"
+    x:DataType="vm:EquipmentViewModel">
+
+    <Grid Margin="24" RowDefinitions="Auto,Auto,*">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="4">
+                <TextBlock Classes="page-title" Text="Equipment" />
+                <TextBlock Classes="muted" Text="Browse campus equipment and create a borrowing." />
+            </StackPanel>
+            <Button Grid.Column="1" Content="Refresh" Command="{Binding LoadCommand}" />
+        </Grid>
+
+        <Border Grid.Row="1" Classes="feedback" Margin="0,18,0,12">
+            <TextBlock Classes="feedback-text" Text="{Binding StatusMessage}" />
+        </Border>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,360" ColumnSpacing="18">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="section-title" Text="Equipment inventory" />
+                <ListBox ItemsSource="{Binding Equipment}"
+                         SelectedItem="{Binding SelectedEquipment}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="domain:Equipment">
+                            <Border Classes="card" Margin="0,0,0,8">
+                                <Grid ColumnDefinitions="80,*,Auto" ColumnSpacing="12">
+                                    <TextBlock Classes="card-text" VerticalAlignment="Center"
+                                               Text="{Binding Id, StringFormat='#{0}'}"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Classes="card-text" VerticalAlignment="Center" Text="{Binding Name}" />
+                                    <Border Grid.Column="2" Classes="status-chip" VerticalAlignment="Center">
+                                        <TextBlock Classes="card-text"
+                                                   Text="{Binding IsAvailable, Converter={StaticResource EquipmentAvailabilityConverter}}" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </StackPanel>
+
+            <Border Grid.Column="1" Classes="card" Padding="20" VerticalAlignment="Top">
+                <StackPanel Spacing="12">
+                    <TextBlock Classes="section-title" Text="Borrow equipment" />
+                    <TextBlock Classes="muted" Text="Choose a student, equipment item, and expected return date." TextWrapping="Wrap" />
+
+                    <TextBlock Text="Student" />
+                    <ComboBox ItemsSource="{Binding Students}"
+                              SelectedItem="{Binding SelectedStudent}"
+                              PlaceholderText="Select a student">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="domain:Student">
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <TextBlock Text="Equipment" />
+                    <ComboBox ItemsSource="{Binding Equipment}"
+                              SelectedItem="{Binding SelectedBorrowEquipment}"
+                              PlaceholderText="Select equipment">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="domain:Equipment">
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <TextBlock Text="Expected return date" />
+                    <DatePicker SelectedDate="{Binding ExpectedReturnDate}" />
+
+                    <Button Classes="primary" Content="Borrow Equipment"
+                            Command="{Binding BorrowEquipmentCommand}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

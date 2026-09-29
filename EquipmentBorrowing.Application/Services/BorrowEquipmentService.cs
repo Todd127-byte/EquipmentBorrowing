@@ -25,6 +25,12 @@ public class BorrowEquipmentService
         DateTime expectedReturnDate,
         CancellationToken cancellationToken = default)
     {
+        if (expectedReturnDate.Date <= DateTime.Today)
+        {
+            throw new InvalidOperationException(
+                "Expected return date must be after today.");
+        }
+
         var student = await _studentRepository.GetByIdAsync(
             studentId,
             cancellationToken);

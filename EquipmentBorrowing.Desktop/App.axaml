@@ -1,0 +1,93 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="EquipmentBorrowing.Desktop.App"
+             xmlns:local="using:EquipmentBorrowing.Desktop"
+             xmlns:converters="using:EquipmentBorrowing.Desktop.Converters"
+             RequestedThemeVariant="Dark">
+    <Application.Resources>
+        <converters:EquipmentAvailabilityConverter x:Key="EquipmentAvailabilityConverter" />
+    </Application.Resources>
+
+    <Application.DataTemplates>
+        <local:ViewLocator />
+    </Application.DataTemplates>
+
+    <Application.Styles>
+        <FluentTheme />
+
+        <Style Selector="Window">
+            <Setter Property="Background" Value="#151D2B" />
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="Padding" Value="14,9" />
+            <Setter Property="CornerRadius" Value="7" />
+        </Style>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="#23689D" />
+            <Setter Property="Foreground" Value="#F5F8FC" />
+        </Style>
+        <Style Selector="Button.nav">
+            <Setter Property="Background" Value="#243A56" />
+            <Setter Property="Foreground" Value="#F5F8FC" />
+        </Style>
+        <Style Selector="TextBlock.page-title">
+            <Setter Property="FontSize" Value="26" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="#F4F7FC" />
+        </Style>
+        <Style Selector="TextBlock.section-title">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#E8EEF7" />
+        </Style>
+        <Style Selector="TextBlock.card-text">
+            <Setter Property="Foreground" Value="#F1F5FA" />
+        </Style>
+        <Style Selector="TextBlock.muted">
+            <Setter Property="Foreground" Value="#ADB9CA" />
+        </Style>
+        <Style Selector="TextBlock.muted-light">
+            <Setter Property="Foreground" Value="#C8D4E4" />
+        </Style>
+        <Style Selector="TextBlock.app-title">
+            <Setter Property="FontSize" Value="21" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+        <Style Selector="Border.app-header">
+            <Setter Property="Background" Value="#14263F" />
+        </Style>
+        <Style Selector="Border.feedback">
+            <Setter Property="Background" Value="#25354A" />
+            <Setter Property="Padding" Value="12,9" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style Selector="TextBlock.feedback-text">
+            <Setter Property="Foreground" Value="#EAF1F9" />
+        </Style>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="#202B3A" />
+            <Setter Property="BorderBrush" Value="#3A495E" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="14" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style Selector="Border.status-chip">
+            <Setter Property="Background" Value="#25445A" />
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="CornerRadius" Value="12" />
+        </Style>
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="#192536" />
+            <Setter Property="BorderBrush" Value="#344257" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="MinHeight" Value="38" />
+        </Style>
+        <Style Selector="DatePicker">
+            <Setter Property="MinHeight" Value="38" />
+        </Style>
+    </Application.Styles>
+</Application>
